@@ -1,0 +1,74 @@
+version: "3.8"
+
+# This file defines the services for your application's
+# backend dependencies (database and cache).
+
+services:
+  # --- Spring Boot Application Service ---
+  app:
+    build: .
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # Database configuration
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/membership_db
+      - SPRING_DATASOURCE_USERNAME=your_db_username
+      - SPRING_DATASOURCE_PASSWORD=your_db_password
+      # Redis configuration
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6370
+      # JPA configuration
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=false
+      # Server configuration
+      - SERVER_PORT=8080
+      - JWT_SECRET=OUY7LWphleeus9mUS9woP6LuMXLDNe6UH5XDw+lC1c7dyeIv65+NWgFwbULhCtmxeMXbswTqzfjN22anFMb/SQ==
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # --- PostgreSQL Database Service ---
+  db:
+    image: postgres:17.6-alpine
+    restart: always
+    environment:
+      # IMPORTANT: Match these with your application.properties file
+      - POSTGRES_DB=membership_db
+      - POSTGRES_USER=your_db_username
+      - POSTGRES_PASSWORD=your_db_password
+    ports:
+      - "5432:5432"
+    volumes:
+      # This ensures your database data persists even if the container is removed.
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Redis Cache Service ---
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      # This saves the Redis data to a persistent volume.
+      - redis_data:/data
+
+# --- Named Volumes ---
+# Docker will automatically create these volumes for data persistence.
+volumes:
+  pg_data:
+  redis_data:
